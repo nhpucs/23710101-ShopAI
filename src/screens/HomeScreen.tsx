@@ -1,67 +1,172 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-// ĐÚNG: SafeAreaView phải lấy từ 'react-native-safe-area-context', KHÔNG lấy từ 'react-native'
+import React from 'react';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import ProductCard from '@components/ProductCard';
-import { MOCK_PRODUCTS } from '@data/mockProducts';
+import ShopButton from '@components/ShopButton';
 import { COLORS, SIZES } from '@constants/theme';
-import { useNavigation } from '@react-navigation/native'; 
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack'; 
-import ShopButton from '@components/ShopButton'; 
-import type { HomeStackParamList } from '@navigation/HomeStackNavigator'; 
+import { useAuthStore } from '@store/useAuthStore';
+import { useCartStore } from '@store/useCartStore';
+import { Product, ProductListSchema } from '../types/product.schema';
+import type { HomeStackParamList } from '@navigation/HomeStackNavigator';
+import type { MainTabParamList } from '@navigation/MainTabNavigator';
 
-type HomeNavProp = NativeStackNavigationProp<HomeStackParamList, 'Home'>; 
+// HomeScreen cần navigate ở CẢ 2 tầng: trong Stack (ProductDetail) VÀ sang Tab cha (Cart)
+type Props = CompositeScreenProps<
+  NativeStackScreenProps<HomeStackParamList, 'Home'>,
+  BottomTabScreenProps<MainTabParamList>
+>;
 
-const HomeScreen = ({ onLogout }: { onLogout: () => void }) => { 
-  const navigation = useNavigation<HomeNavProp>(); 
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
-  const [refreshing, setRefreshing] = useState(false);
+const PAGE_SIZE = 10;
+const TOTAL_MOCK_PRODUCTS = 47; // Giả lập Server có 47 sản phẩm — đủ nhiều trang để thấy Pagination
 
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    // Giả lập gọi lại API mất 1.5 giây — Chương 6 sẽ thay bằng refetch() thật của React Query
+interface ProductPage {
+  items: Product[];
+  nextPage: number | null;
+}
+
+// 2 lớp lỗi riêng biệt để UI phân biệt "lỗi mạng" và "lỗi dữ liệu bẩn"
+class ZodValidationError extends Error {}
+class NetworkError extends Error {}
+
+const fetchProductsPage = async ({
+  pageParam,
+}: {
+  pageParam: number;
+}): Promise<ProductPage> => {
+  return new Promise((resolve, reject) => {
     setTimeout(() => {
-      setProducts([...MOCK_PRODUCTS].sort(() => Math.random() - 0.5));
-      setRefreshing(false);
-    }, 1500);
-  }, []);
+      // Giả lập ~10% mất mạng để thấy rõ nhánh lỗi Mạng
+      if (Math.random() < 0.1) {
+        reject(new NetworkError('Mất kết nối mạng, vui lòng thử lại!'));
+        return;
+      }
+
+      const start = (pageParam - 1) * PAGE_SIZE;
+      const rawItems = Array.from({ length: PAGE_SIZE })
+        .map((_, i) => {
+          const index = start + i;
+          if (index >= TOTAL_MOCK_PRODUCTS) return null;
+          return {
+            id: `api_prod_${index}`,
+            name: `Sản phẩm từ Cloud ${index}`,
+            price: 500000 + index * 5000,
+            image: `https://picsum.photos/id/${100 + index}/400/400`,
+          };
+        })
+        .filter(item => item !== null);
+
+      // TRẠM KIỂM SOÁT ZOD: soi TỪNG TRANG trước khi cho đi tiếp
+      const result = ProductListSchema.safeParse(rawItems);
+      if (!result.success) {
+        console.error('❌ Zod chặn dữ liệu bẩn từ API:', result.error.format());
+        reject(new ZodValidationError('Dữ liệu sản phẩm không hợp lệ!'));
+        return;
+      }
+
+      const hasMore = start + PAGE_SIZE < TOTAL_MOCK_PRODUCTS;
+      resolve({ items: result.data, nextPage: hasMore ? pageParam + 1 : null });
+    }, 1200);
+  });
+};
+
+const HomeScreen = ({ navigation }: Props) => {
+  const logout = useAuthStore(state => state.logout);
+  const totalQuantity = useCartStore(state => state.totalQuantity());
+
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['productsInfinite'],
+    queryFn: fetchProductsPage,
+    initialPageParam: 1,
+    getNextPageParam: lastPage => lastPage.nextPage,
+  });
+
+  // data.pages là mảng CÁC TRANG — làm phẳng thành 1 mảng duy nhất cho FlashList
+  const allProducts = data?.pages.flatMap(page => page.items) ?? [];
+
+  // Phân biệt 2 loại lỗi bằng instanceof — không gộp chung 1 câu mơ hồ
+  const errorMessage =
+    error instanceof ZodValidationError
+      ? '⚠️ Dữ liệu sản phẩm không hợp lệ (lỗi kiểm tra Zod) — báo kỹ thuật viên!'
+      : '📡 Lỗi mạng — vui lòng kiểm tra kết nối và kéo xuống thử lại!';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
-        {/* Header AppBar */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Khám phá</Text>
-          <ShopButton 
-            title='Thoát'
-            onPress={onLogout}
-            style={styles.logoutBtn}
-          />
+          <View style={styles.headerActions}>
+            <ShopButton
+              title={`Giỏ hàng (${totalQuantity})`}
+              onPress={() => navigation.navigate('Cart')}
+              style={styles.cartBtn}
+              textStyle={styles.cartBtnText}
+            />
+            <ShopButton title="Thoát" onPress={logout} style={styles.logoutBtn} />
+          </View>
         </View>
 
+        {/* TRẠNG THÁI 1: đang tải lần đầu */}
+        {isLoading && (
+          <ActivityIndicator
+            size="large"
+            color={COLORS.primary}
+            style={styles.centerLoader}
+          />
+        )}
 
-        <FlashList
-          data={products}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            // Chỉ gửi productId (ID) qua navigate, không gửi nguyên object sản phẩm
-            <Pressable
-              style={styles.cardPressable}
-              onPress={() =>
-                navigation.navigate('ProductDetail', { productId: item.id })
-              }
-            >
-              <ProductCard product={item} />
-            </Pressable>
-          )}
+        {/* TRẠNG THÁI 2: lỗi — 1 cờ isError nhưng 2 thông điệp khác nhau */}
+        {isError && <Text style={styles.errorText}>{errorMessage}</Text>}
 
-          numColumns={2}
-          refreshing={refreshing} // FlashList tự vẽ vòng xoay loading khi true
-          onRefresh={handleRefresh} // Gọi khi người dùng kéo tay xuống đầu danh sách
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
+        {/* TRẠNG THÁI 3: có dữ liệu */}
+        {allProducts.length > 0 && (
+          <FlashList
+            data={allProducts}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <Pressable
+                style={styles.cardPressable}
+                onPress={() =>
+                  navigation.navigate('ProductDetail', { productId: item.id })
+                }
+              >
+                <ProductCard product={item} />
+              </Pressable>
+            )}
+            numColumns={2}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            onEndReached={() => {
+              if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+            }}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <ActivityIndicator
+                  size="small"
+                  color={COLORS.primary}
+                  style={styles.footerLoader}
+                />
+              ) : null
+            }
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -80,8 +185,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.padding,
     paddingVertical: 15,
     backgroundColor: COLORS.surface,
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerTitle: {
@@ -89,9 +194,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  logoutBtn: { width: 80, height: 32, backgroundColor: COLORS.textLight }, 
-  cardPressable: { flex: 1 }, 
+  // ➕ MỚI (Chương 6) — hàng chứa 2 nút Giỏ hàng + Thoát
+  headerActions: { flexDirection: 'row', gap: 10 },
+  cartBtn: { width: 120, height: 32, backgroundColor: COLORS.secondary },
+  cartBtnText: { fontSize: 12 },
+  logoutBtn: { width: 80, height: 32, backgroundColor: COLORS.textLight },
+  cardPressable: { flex: 1 }, // BẮT BUỘC với numColumns={2}, thiếu là lưới lệch 1 cột
   listContent: { padding: SIZES.padding / 2 },
+  // ➕ MỚI (Chương 6) — 3 trạng thái loading / error / tải thêm
+  centerLoader: { marginTop: 50 },
+  errorText: { textAlign: 'center', marginTop: 50, color: 'red' },
+  footerLoader: { marginVertical: 16 },
 });
 
 export default HomeScreen;

@@ -19,9 +19,12 @@ module.exports = {
           '@constants': './src/constants',
           '@types': './src/types',
           '@contexts': './src/contexts',
+          '@api': './src/api',
         },
       },
     ],
+    // Chương 6: Zod v4 dùng cú pháp `export * as X from ...` — Metro cần plugin này để hiểu
+    '@babel/plugin-transform-export-namespace-from',
     // Reanimated 4: plugin nằm trong react-native-worklets, LUÔN đứng cuối cùng
     'react-native-worklets/plugin',
   ],

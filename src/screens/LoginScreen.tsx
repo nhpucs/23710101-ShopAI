@@ -3,15 +3,13 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import ShopButton from "@components/ShopButton";
 import ShopInput from "@components/ui/ShopInput";
 import { COLORS, SIZES } from "@constants/theme";
+import { useNavigation } from "@react-navigation/native";
+import { useAuthStore } from "@store/useAuthStore";
 
 
-const LoginScreen = ({
-  onLogin,
-  onGoRegister,
-}: {
-  onLogin: (token: string) => void;
-  onGoRegister: () => void;
-}) => {
+const LoginScreen = () => {
+  const navigation = useNavigation<any>();
+  const login = useAuthStore(state => state.login);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
@@ -34,7 +32,7 @@ const LoginScreen = ({
     // Giả lập gọi API server
     setTimeout(() => {
       setLoading(false);
-      onLogin("mock_token_123"); // Cấp token
+      login("mock_token_123"); // Cấp token
     }, 1200);
   };
 
@@ -68,8 +66,7 @@ const LoginScreen = ({
         style={styles.loginBtn}
       />
 
-      {/* Liên kết sang màn Đăng ký trong cùng AuthStack (Bước 2.5) */}
-      <Pressable onPress={onGoRegister} style={styles.registerLink}>
+      <Pressable onPress={() => navigation.navigate("Register")} style={styles.registerLink}>
         <Text style={styles.registerLinkText}>
           Chưa có tài khoản?{" "}
           <Text style={styles.registerLinkBold}>Đăng ký</Text>

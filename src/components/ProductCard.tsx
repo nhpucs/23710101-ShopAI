@@ -7,7 +7,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { COLORS, SIZES } from '@constants/theme';
 import ShopButton from '@components/ShopButton';
-import { Product } from '@data/mockProducts';
+import { Product } from '../types/product.schema'; // Đổi nguồn Type sang Zod Schema
+import { useCartStore } from '@store/useCartStore';
 
 // Lấy chiều rộng màn hình để tính kích thước cột (Grid 2 cột, có khe hở đều 2 bên)
 const { width } = Dimensions.get('window');
@@ -19,6 +20,7 @@ interface Props {
 }
 
 const ProductCard = ({ product }: Props) => {
+  const addItem = useCartStore(state => state.addItem); // Lấy hàm bắn lên Đám mây Giỏ hàng
   // Reanimated: Shared Value sống trên UI Thread, không phải state React thông thường
   const opacity = useSharedValue(0);
 
@@ -52,7 +54,7 @@ const ProductCard = ({ product }: Props) => {
         {/* Tái sử dụng Nút bấm từ Sprint 3 */}
         <ShopButton
           title="Mua ngay"
-          onPress={() => {}}
+          onPress={() => addItem(product)} // Bắn thẳng sản phẩm lên Giỏ hàng
           style={styles.button}
           textStyle={styles.buttonText}
         />

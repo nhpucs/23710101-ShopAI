@@ -3,14 +3,13 @@ import { Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import ShopButton from "@components/ShopButton";
 import ShopInput from "@components/ui/ShopInput";
 import { COLORS, SIZES } from "@constants/theme";
+import { useNavigation } from "@react-navigation/native";
+import { useAuthStore } from "@store/useAuthStore";
 
-const RegisterScreen = ({
-  onRegistered,
-  onGoLogin,
-}: {
-  onRegistered: (token: string) => void;
-  onGoLogin: () => void;
-}) => {
+const RegisterScreen = () => {
+  const navigation = useNavigation<any>();
+  const login = useAuthStore(state => state.login);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,7 +39,7 @@ const RegisterScreen = ({
     // Ch.9: đổi thành POST /api/auth/register thật (bcrypt + Prisma).
     setTimeout(() => {
       setLoading(false);
-      onRegistered("mock_token_123");
+      login("mock_token_123");
     }, 1200);
   };
 
@@ -92,7 +91,7 @@ const RegisterScreen = ({
         style={styles.submitBtn}
       />
 
-      <Pressable onPress={onGoLogin} style={styles.loginLink}>
+      <Pressable onPress={() => navigation.navigate("Login")} style={styles.loginLink}>
         <Text style={styles.loginLinkText}>
           Đã có tài khoản? <Text style={styles.loginLinkBold}>Đăng nhập</Text>
         </Text>

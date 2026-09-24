@@ -14,6 +14,7 @@ import { useCartStore } from '@store/useCartStore';
 import { Product, ProductListSchema } from '../types/product.schema';
 import type { HomeStackParamList } from '@navigation/HomeStackNavigator';
 import type { MainTabParamList } from '@navigation/MainTabNavigator';
+import LocationBadge from '@components/LocationBadge';
 
 // HomeScreen cần navigate ở CẢ 2 tầng: trong Stack (ProductDetail) VÀ sang Tab cha (Cart)
 type Props = CompositeScreenProps<
@@ -74,9 +75,10 @@ const fetchProductsPage = async ({
   });
 };
 
-const HomeScreen = ({ navigation }: Props) => {
+const HomeScreen = ({ navigation, route }: Props) => {
   const logout = useAuthStore(state => state.logout);
   const totalQuantity = useCartStore(state => state.totalQuantity());
+  const scannedCode = route.params?.scannedCode;
 
   const {
     data,
@@ -119,6 +121,23 @@ const HomeScreen = ({ navigation }: Props) => {
             <ShopButton title="Thoát" onPress={logout} style={styles.logoutBtn} />
           </View>
         </View>
+        {/* ➕ Chương 7 — thẻ vị trí + phí ship, tự dò GPS khi màn hình mount */}
+        <LocationBadge />
+
+        <View style={styles.scanBar}>
+          <ShopButton
+            title="📷 Quét mã vạch sản phẩm"
+            onPress={() => navigation.navigate('Scanner')}
+            style={styles.scanBtn}
+            textStyle={styles.scanBtnText}
+          />
+        </View>
+
+        {scannedCode && (
+          <View style={styles.scanResult}>
+            <Text style={styles.scanResultText}>Mã vừa quét: {scannedCode}</Text>
+          </View>
+        )}
 
         {/* TRẠNG THÁI 1: đang tải lần đầu */}
         {isLoading && (
@@ -194,17 +213,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  // ➕ MỚI (Chương 6) — hàng chứa 2 nút Giỏ hàng + Thoát
   headerActions: { flexDirection: 'row', gap: 10 },
   cartBtn: { width: 120, height: 32, backgroundColor: COLORS.secondary },
   cartBtnText: { fontSize: 12 },
   logoutBtn: { width: 80, height: 32, backgroundColor: COLORS.textLight },
   cardPressable: { flex: 1 }, // BẮT BUỘC với numColumns={2}, thiếu là lưới lệch 1 cột
   listContent: { padding: SIZES.padding / 2 },
-  // ➕ MỚI (Chương 6) — 3 trạng thái loading / error / tải thêm
   centerLoader: { marginTop: 50 },
   errorText: { textAlign: 'center', marginTop: 50, color: 'red' },
   footerLoader: { marginVertical: 16 },
+  scanBar: {
+    paddingHorizontal: SIZES.padding,
+    paddingBottom: 12,
+    backgroundColor: COLORS.surface,
+  },
+  scanBtn: { height: 40, backgroundColor: COLORS.secondary },
+  scanBtnText: { fontSize: 14 },
+  scanResult: { backgroundColor: '#FFF3CD', padding: 10, alignItems: 'center' },
+  scanResultText: { fontWeight: 'bold', color: COLORS.text },
 });
 
 export default HomeScreen;

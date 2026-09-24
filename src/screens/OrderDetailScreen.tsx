@@ -6,8 +6,19 @@ import ShopButton from '@components/ShopButton';
 import { useOrderStore } from '@store/useOrderStore';
 import { COLORS, SIZES } from '@constants/theme';
 import { RootStackParamList } from '@navigation/RootStackNavigator';
+import { PaymentMethod, getPaymentMethod } from '@constants/payment';
+import { hapticSuccess } from '@utils/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderDetail'>;
+
+// Chữ trên nút chuyển PENDING -> PAID, tuỳ phương thức. DEFAULT cho đơn cũ không có phương thức
+const PAY_BUTTON_TITLE: Record<PaymentMethod | 'DEFAULT', string> = {
+  COD: 'Đã nhận hàng & trả tiền (→ PAID)',
+  BANK: 'Thanh toán giả lập (→ PAID)',
+  CARD: 'Thanh toán giả lập (→ PAID)',
+  MOMO: 'Thanh toán giả lập (→ PAID)',
+  DEFAULT: 'Thanh toán giả lập (→ PAID)',
+};
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
@@ -18,6 +29,9 @@ const OrderDetailScreen = ({ route }: Props) => {
   const { orderId } = route.params;
   const order = useOrderStore(s => s.getById(orderId));
   const markPaid = useOrderStore(s => s.markPaid);
+  const method = order?.paymentMethod
+    ? getPaymentMethod(order.paymentMethod)
+    : undefined;
 
   if (!order) {
     return (
@@ -33,6 +47,13 @@ const OrderDetailScreen = ({ route }: Props) => {
         <Text style={styles.heading}>Hóa đơn</Text>
         <Text style={styles.row}>Mã: {order.id}</Text>
         <Text style={styles.row}>Trạng thái: {order.status}</Text>
+        {/* Đơn cũ (trước tính năng thanh toán) không có paymentMethod -> ẩn dòng này */}
+        {method && (
+          <Text style={styles.row}>
+            Phương thức: {method.label}
+            {order.paymentBank ? ` (${order.paymentBank})` : ''}
+          </Text>
+        )}
         <Text style={styles.row}>
           Ngày: {new Date(order.createdAt).toLocaleString('vi-VN')}
         </Text>
@@ -51,8 +72,11 @@ const OrderDetailScreen = ({ route }: Props) => {
 
         {order.status === 'PENDING' ? (
           <ShopButton
-            title="Thanh toán giả lập (→ PAID)"
-            onPress={() => markPaid(order.id)}
+            title={PAY_BUTTON_TITLE[order.paymentMethod ?? 'DEFAULT']}
+            onPress={() => {
+              markPaid(order.id);
+              hapticSuccess();
+            }}
             style={styles.payBtn}
           />
         ) : (

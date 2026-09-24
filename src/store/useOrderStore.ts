@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CartItem } from './useCartStore';
+import type { PaymentMethod } from '@constants/payment';
 
 export type PaymentStatus = 'PENDING' | 'PAID';
 
@@ -11,6 +12,9 @@ export interface OrderRecord {
   total: number;
   status: PaymentStatus;
   createdAt: string; // ISO
+  // Dấu ? vì đơn cũ đã persist trong AsyncStorage (trước tính năng này) không có trường này
+  paymentMethod?: PaymentMethod;
+  paymentBank?: string; // Tên ngân hàng đã quét QR (chỉ có khi paymentMethod = 'BANK')
 }
 
 interface OrderState {

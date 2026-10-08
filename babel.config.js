@@ -1,4 +1,7 @@
 module.exports = {
+  // Chương 8: install-expo-modules đổi thành 'babel-preset-expo', nhưng preset đó
+  // chưa parse được cú pháp Flow `readonly` của RN 0.87 -> trả lại preset gốc của RN.
+  // expo-secure-store / expo-local-authentication là native module thuần, không cần preset Expo.
   presets: ['module:@react-native/babel-preset'],
   plugins: [
     [

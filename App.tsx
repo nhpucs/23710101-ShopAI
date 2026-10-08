@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,6 +11,9 @@ import RegisterScreen from '@screens/RegisterScreen';
 import RootStackNavigator from '@navigation/RootStackNavigator';
 import { useAuthStore } from '@store/useAuthStore';
 import { reduxStore } from '@store/redux/store';
+import { COLORS } from '@constants/theme';
+import BiometricGateScreen from '@screens/BiometricGateScreen';
+import { useAppLock } from '@hooks/useAppLock';
 
 const AuthStack = createNativeStackNavigator();
 
@@ -43,13 +47,40 @@ const queryClient = new QueryClient({
 });
 
 function App(): React.JSX.Element {
-  // Không còn useState! Token giờ nằm trong tủ Zustand
+  // Selector RIÊNG cho từng trường — gọi useAuthStore() trống sẽ khiến App
+  // vẽ lại mỗi khi BẤT KỲ trường nào đổi, kể cả trường App không quan tâm
   const token = useAuthStore(state => state.token);
+  const isLoading = useAuthStore(state => state.isLoading);
+  const checkLocalToken = useAuthStore(state => state.checkLocalToken);
+  const isUnlocked = useAuthStore(state => state.isUnlocked);
+  const setIsUnlocked = useAuthStore(state => state.setIsUnlocked);
+
+  useEffect(() => {
+    checkLocalToken(); // Móc vào két SecureStore ngay khi App vừa khởi chạy
+  }, [checkLocalToken]);
+
+    // Canh gác App Lock — tự khoá nếu App ở nền quá lâu (Phần 8.12)
+  useAppLock({ isUnlocked, setIsUnlocked });
+
+  // Đang lục két -> hiện vòng xoay tràn màn hình, chưa quyết định đi đâu
+  if (isLoading) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+  
+  // Có token nhưng chưa vượt cổng -> chặn tại đây.
+  // Chỉ chặn khi CÓ token; chưa đăng nhập thì đi thẳng vào Login.
+  if (token != null && !isUnlocked) {
+    return <BiometricGateScreen onUnlock={() => setIsUnlocked(true)} />;
+  }
 
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        {/* Bước 10 — Provider của Redux Toolkit, chạy SONG SONG với Zustand (bài tập đề cương) */}
+        {/* Chương 6 Bước 10 — Provider Redux Toolkit, chạy SONG SONG với Zustand */}
         <Provider store={reduxStore}>
           <ThemeProvider>
             <NavigationContainer linking={linking}>
@@ -62,7 +93,6 @@ function App(): React.JSX.Element {
                   />
                 </AuthStack.Navigator>
               ) : (
-                // Bước 9.5 — đổi từ <MainTabNavigator /> sang RootStack để có Checkout Modal + OrderDetail
                 <RootStackNavigator />
               )}
             </NavigationContainer>
@@ -72,5 +102,14 @@ function App(): React.JSX.Element {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+});
 
 export default App;

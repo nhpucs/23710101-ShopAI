@@ -5,6 +5,8 @@ import ShopInput from "@components/ui/ShopInput";
 import { COLORS, SIZES } from "@constants/theme";
 import { useNavigation } from "@react-navigation/native";
 import { useAuthStore } from "@store/useAuthStore";
+import axiosClient from "@api/axiosClient"; // ➕ Ch.9 Bước 9e
+import { getServerErrorMessage } from "@utils/serverError";
 
 const RegisterScreen = () => {
   const navigation = useNavigation<any>();
@@ -21,6 +23,7 @@ const RegisterScreen = () => {
     confirm?: string;
   }>({});
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null); // ➕ Ch.9: vd email đã đăng ký (409)
 
   const validate = () => {
     const next: typeof errors = {};
@@ -32,15 +35,24 @@ const RegisterScreen = () => {
     return Object.keys(next).length === 0;
   };
 
-  const handleRegister = () => {
+  // Ch.9 Bước 9e: đăng ký THẬT — POST /api/auth/register (bcrypt + Prisma), trả JWT như login
+  const handleRegister = async () => {
     if (!validate()) return;
     setLoading(true);
-    // Ch.5: giả lập đăng ký thành công → cấp token như login.
-    // Ch.9: đổi thành POST /api/auth/register thật (bcrypt + Prisma).
-    setTimeout(() => {
+    setServerError(null);
+    try {
+      const response = await axiosClient.post<{ accessToken: string }>("/api/auth/register", {
+        email: email.trim(),
+        password,
+        name: name.trim(),
+      });
+      await login(response.data.accessToken); // Đăng ký xong vào thẳng Main
+    } catch (error) {
+      // 409 "Email đã được đăng ký" hoặc lỗi ValidationPipe (mảng message)
+      setServerError(getServerErrorMessage(error, "Đăng ký thất bại, vui lòng thử lại"));
+    } finally {
       setLoading(false);
-      login("mock_token_123");
-    }, 1200);
+    }
   };
 
   return (
@@ -84,6 +96,8 @@ const RegisterScreen = () => {
         secureTextEntry
       />
 
+      {serverError && <Text style={styles.errorText}>⚠️ {serverError}</Text>}
+
       <ShopButton
         title="Đăng ký ngay"
         onPress={handleRegister}
@@ -121,6 +135,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   submitBtn: { marginTop: 8 },
+  errorText: { color: COLORS.error, textAlign: "center", marginBottom: 12 },
   loginLink: { marginTop: 20, alignItems: "center" },
   loginLinkText: { fontSize: SIZES.body2, color: COLORS.textLight },
   loginLinkBold: { color: COLORS.primary, fontWeight: "700" },

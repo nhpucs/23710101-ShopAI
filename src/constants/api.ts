@@ -1,14 +1,12 @@
 /**
- * Nơi DUY NHẤT khai báo địa chỉ máy chủ.
- *
- * Hiện tại danh sách sản phẩm là dữ liệu cục bộ (`@data/techProducts`) nên địa chỉ
- * này CHƯA được gọi tới; trước đó app dùng DummyJSON — một Public API miễn phí có
- * sẵn phân trang `limit`/`skip`, khớp thẳng với `useInfiniteQuery` (Chương 6).
- *
- * Chương 9: khi đã dựng xong NestJS, chỉ sửa ĐÚNG FILE NÀY sang IP máy chủ của mình
- * (ví dụ 'http://192.168.1.10:3000/api'); không màn hình nào phải sửa theo.
+ * Nơi DUY NHẤT khai báo địa chỉ máy chủ NestJS (Chương 9).
+ * Đổi môi trường chạy app thì chỉ sửa đúng dòng API_BASE_URL bên dưới:
+ *   - Android Emulator:  'http://10.0.2.2:3000'  (cửa sổ đặc biệt nhìn về máy tính)
+ *   - Điện thoại thật:   'http://<IP LAN máy tính>:3000'  (xem bằng ipconfig, cùng Wi-Fi)
+ *   - iOS Simulator:     'http://localhost:3000'
+ * KHÔNG dùng localhost trên Android: localhost lúc đó là CHÍNH điện thoại (Phần 9.4).
  */
-export const PRODUCT_API_BASE_URL = 'https://dummyjson.com';
+export const API_BASE_URL = 'http://10.0.2.2:3000';
 
 /** Số sản phẩm mỗi trang — dùng chung cho cả lời gọi API lẫn logic phân trang. */
 export const PAGE_SIZE = 10;

@@ -1,9 +1,7 @@
 # ✅ Checklist ShopAI – React Native Thực Chiến
 
-> Nguồn: các mục "Checklist nghiệm thu" / "Bạn phải tự kiểm" trong docs của thầy
 > https://thayduy.github.io/react-native-thuc-chien/
 >
-> **Cách dùng:** tick bằng `- [x]` (hoặc nhấn **Alt + C** với extension *Markdown All in One*), rồi commit kèm code của mục đó.
 
 ## 📊 Tiến độ
 
@@ -16,8 +14,8 @@
 | 5 | Navigation, Auth & Deep Link | ✅ |
 | 6 | State Management (Zustand, TanStack Query, Redux) | ✅ |
 | 7 | Native Module & Quyền | ✅ |
-| 8 | Bảo mật & AI | ⬜ |
-| 9 | Backend NestJS + Prisma | ⬜ |
+| 8 | Bảo mật & AI | ✅ |
+| 9 | Backend NestJS + Prisma | ✅ |
 | 10 | Môi trường, Crashlytics, Release & OTA | ⬜ |
 | 11 | Testing & CI/CD | ⬜ |
 
@@ -141,8 +139,6 @@
 
 ## Chương 7 – Native Module & Quyền
 
-> Docs chương này không có checklist dạng tick. Danh sách dưới đây chuyển từ bảng "Bạn phải trả lời được" ở phần Tổng kết.
-
 - [x] Native Module: vì sao cài thư viện Native thì Hot Reload vô hiệu, phải build lại?
   - **Trả lời:** Hot Reload chỉ nạp lại gói **JavaScript**. Thư viện Native thêm code Java/Kotlin/ObjC vào bản build, nên phải biên dịch lại và cài APK mới thì máy mới có code đó.
 
@@ -182,8 +178,6 @@
 
 ## Chương 8 – Bảo mật & AI
 
-> Docs chương này không có checklist dạng tick. Danh sách dưới đây chuyển từ bảng "Bạn phải trả lời được" ở phần Tổng kết.
-
 - [x] Dịch ngược & MITM (8.1): vì sao mã nguồn Mobile nguy hiểm hơn Web?
   - **Trả lời:** File APK/IPA nằm trong tay người dùng — ai cũng tải về giải nén đọc được mã và chuỗi hằng, trong khi code Web phần lớn chạy trên máy chủ mình kiểm soát. Hệ quả: **mọi secret nhúng trong app phải coi như đã công khai**.
 
@@ -206,7 +200,7 @@
   - **Trả lời:** **Không.** App chỉ nhờ hệ điều hành xác minh và nhận về đúng `true`/`false`; vân tay nằm trong vùng chip bảo mật, cả OS cũng không đọc ra. Luôn phải có lối thoát (PIN / mật khẩu) vì cảm biến bẩn, tay ướt hay đeo khẩu trang sẽ khoá **chính chủ** ra ngoài.
 
 - [x] OWASP Mobile (8.8): ShopAI hiện đang dính rủi ro nào nghiêm trọng nhất?
-  - **Trả lời:** **API Key Gemini nằm ngay trong app** (nhóm Improper Credential Usage). Ai giải nén APK cũng lấy được và tiêu hết hạn mức của bạn. Chỉ chữa được ở Chương 9 khi chuyển lời gọi AI về server.
+  - **Trả lời:** **API Key Gemini nằm ngay trong app** (nhóm Improper Credential Usage). Ai giải nén APK cũng lấy được và tiêu hết hạn mức của bạn. Chỉ chữa được ở Chương 9 khi chuyển lời gọi AI về server — **đã chữa ở Ch9 Bước 9**: key chỉ còn trong `.env` của `shopai-backend`.
 
 - [x] Prompt nâng cao (8.9): `temperature` cao/thấp khác nhau ra sao? Few-shot mạnh hơn Zero-shot ở điểm gì?
   - **Trả lời:** `temperature` thấp (0–0.3) → bám sát, ổn định, hợp tra cứu; cao (0.8–1) → sáng tạo nhưng dễ bịa. **Few-shot** đưa sẵn vài ví dụ mẫu nên model bắt chước đúng định dạng và giọng văn — chắc chắn hơn Zero-shot chỉ ra lệnh suông.
@@ -228,30 +222,30 @@
 ## Chương 9 – Backend NestJS + Prisma
 
 **Backend `shopai-backend`:**
-- [ ] `GET /api/products` trả 20 sản phẩm, id **ổn định** giữa các lần gọi
-- [ ] `GET /api/products/:id` trả `200` với id hợp lệ, `404` (message tiếng Việt) với id sai
-- [ ] `POST /api/products` với `price: -100` bị `ValidationPipe` chặn, trả `400` kèm danh sách lỗi
-- [ ] `npx prisma migrate dev` thành công, có `prisma/migrations/` và `prisma/dev.db`
-- [ ] Seed được ít nhất 1 User (`npx prisma db seed`), xem bằng `npx prisma studio`
-- [ ] `POST /api/auth/login` đúng email/mật khẩu trả `{ accessToken }` là JWT thật (đọc được trên `jwt.io`)
-- [ ] `POST /api/auth/login` sai mật khẩu trả `401`
-- [ ] `POST /api/auth/register` tạo user + trả JWT; email trùng → `409`
-- [ ] `POST /api/orders` **không có** `Authorization: Bearer` trả `401` (Guard hoạt động)
-- [ ] `POST /api/orders` **có** Token: tạo đơn `PENDING`, tự tính lại tổng tiền, từ chối `total` gian lận bằng `400`
-- [ ] `GET /api/orders` (có JWT) chỉ trả đơn của user; `GET /api/orders/:id` chi tiết; `POST …/pay` → `PAID`
-- [ ] Restart Server đơn **vẫn còn** (Prisma + SQLite)
-- [ ] `POST /api/ai/chat` trả `{ reply }`, Key chỉ nằm trong `.env` phía Server
-- [ ] Swagger chạy tại `/api/docs`, đủ nhóm Auth/Products/Orders/Ai, nút "Authorize" hoạt động; `.env.example` đã commit, `.env` và `prisma/dev.db` thì không
-- [ ] `main.ts` có đủ: `enableCors()`, `useGlobalPipes(ValidationPipe)`, `listen(3000, '0.0.0.0')`
+- [x] `GET /api/products` trả danh sách sản phẩm (ShopAI dùng 29 đồ công nghệ thay cho 20 sản phẩm mẫu), id **ổn định** giữa các lần gọi
+- [x] `GET /api/products/:id` trả `200` với id hợp lệ, `404` (message tiếng Việt) với id sai
+- [x] `POST /api/products` với `price: -100` bị `ValidationPipe` chặn, trả `400` kèm danh sách lỗi
+- [x] `npx prisma migrate dev` thành công, có `prisma/migrations/` và `prisma/dev.db`
+- [x] Seed được ít nhất 1 User (`npx prisma db seed`), xem bằng `npx prisma studio`
+- [x] `POST /api/auth/login` đúng email/mật khẩu trả `{ accessToken }` là JWT thật (đọc được trên `jwt.io`)
+- [x] `POST /api/auth/login` sai mật khẩu trả `401`
+- [x] `POST /api/auth/register` tạo user + trả JWT; email trùng → `409`
+- [x] `POST /api/orders` **không có** `Authorization: Bearer` trả `401` (Guard hoạt động)
+- [x] `POST /api/orders` **có** Token: tạo đơn `PENDING`, tự tính lại tổng tiền, từ chối `total` gian lận bằng `400`
+- [x] `GET /api/orders` (có JWT) chỉ trả đơn của user; `GET /api/orders/:id` chi tiết; `POST …/pay` → `PAID`
+- [x] Restart Server đơn **vẫn còn** (Prisma + SQLite)
+- [x] `POST /api/ai/chat` trả `{ reply }`, Key chỉ nằm trong `.env` phía Server
+- [x] Swagger chạy tại `/api/docs`, đủ nhóm Auth/Products/Orders/Ai, nút "Authorize" hoạt động; `.env.example` đã commit, `.env` và `prisma/dev.db` thì không
+- [x] `main.ts` có đủ: `enableCors()`, `useGlobalPipes(ValidationPipe)`, `listen(3000, '0.0.0.0')`
 
 **Mobile `ShopAI`:**
-- [ ] Chỉ **một nơi** khai báo địa chỉ Server: `src/constants/api.ts`; `axiosClient.baseURL` trỏ đúng `API_BASE_URL`
-- [ ] `LoginScreen` / `RegisterScreen` gọi API thật — không còn `mock_token_123`
-- [ ] `HomeScreen` fetch sản phẩm thật, vẫn qua Zod
-- [ ] `ProductDetailScreen` fetch theo `id`, xử lý được `404`
-- [ ] `CheckoutScreen` gọi `POST /api/orders` qua `axiosClient`, hiện mã đơn `PENDING`, **chỉ xóa giỏ khi thành công**
-- [ ] Tab Đơn hàng + Chi tiết HĐ lấy từ Nest; nút Pay gọi `POST …/pay` → `PAID`
-- [ ] `AIChatScreen` không còn import `@google/generative-ai`; đã xóa `geminiConfig.ts`
+- [x] Chỉ **một nơi** khai báo địa chỉ Server: `src/constants/api.ts`; `axiosClient.baseURL` trỏ đúng `API_BASE_URL`
+- [x] `LoginScreen` / `RegisterScreen` gọi API thật — không còn `mock_token_123`
+- [x] `HomeScreen` fetch sản phẩm thật, vẫn qua Zod
+- [x] `ProductDetailScreen` fetch theo `id`, xử lý được `404`
+- [x] `CheckoutScreen` gọi `POST /api/orders` qua `axiosClient`, hiện mã đơn `PENDING`, **chỉ xóa giỏ khi thành công**
+- [x] Tab Đơn hàng + Chi tiết HĐ lấy từ Nest; nút Pay gọi `POST …/pay` → `PAID`
+- [x] `AIChatScreen` không còn import `@google/generative-ai`; đã xóa `geminiConfig.ts`
 
 ---
 

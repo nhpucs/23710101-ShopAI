@@ -1,21 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useRoute } from '@react-navigation/native';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ShopButton from '@components/ShopButton';
 import { useCartStore } from '@store/useCartStore';
-import { Product } from '../types/product.schema';
 import { COLORS, SIZES } from '@constants/theme';
 import type { HomeStackParamList } from '@navigation/HomeStackNavigator';
+import { fetchProductById, ProductPage } from '@services/productService';
 
 type ProductDetailRouteProp = RouteProp<HomeStackParamList, 'ProductDetail'>;
-
-// Khớp đúng khuôn 1 "trang" dữ liệu mà HomeScreen (Bước 8) đã dùng cho useInfiniteQuery
-interface ProductPage {
-  items: Product[];
-  nextPage: number | null;
-}
 
 const ProductDetailScreen = () => {
   const route = useRoute<ProductDetailRouteProp>();
@@ -23,26 +17,46 @@ const ProductDetailScreen = () => {
   const queryClient = useQueryClient();
   const addItem = useCartStore(state => state.addItem);
 
-  // Móc thẳng vào Cache HomeScreen đã lưu — KHÔNG gọi lại API.
-  // Cache của useInfiniteQuery có dạng { pages: ProductPage[] } nên phải flatMap trước khi find.
-  const cachedData = queryClient.getQueryData<{ pages: ProductPage[] }>([
-    'productsInfinite',
-  ]);
-  const cachedProducts = cachedData?.pages.flatMap(page => page.items) ?? [];
-  const product = cachedProducts.find(p => p.id === productId);
+  // Chương 9 — Bước 9b: tự gọi GET /api/products/:id, nên mở thẳng bằng Deep Link
+  // (Trang chủ chưa tải) vẫn có dữ liệu.
+  const {
+    data: product,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['product', productId], // Mỗi sản phẩm có ô cache riêng
+    queryFn: () => fetchProductById(productId),
+    // Hiện NGAY dữ liệu từ cache danh sách Trang chủ (Chương 6) trong lúc request chi tiết
+    // đang bay -> không chớp màn hình Loading. Cache của useInfiniteQuery có dạng
+    // { pages: ProductPage[] } nên phải flatMap trước khi find.
+    placeholderData: () =>
+      queryClient
+        .getQueryData<{ pages: ProductPage[] }>(['productsInfinite'])
+        ?.pages.flatMap(page => page.items)
+        .find(p => p.id === productId),
+  });
 
-  // Cache trống (VD: mở thẳng bằng Deep Link trước khi HomeScreen kịp Fetch)
+  // Chưa có gì để hiện (mở bằng Deep Link, cache trống) -> đang tải
+  if (isLoading && !product) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.hint}>Đang tải sản phẩm (mã {productId})...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Server trả 404 (sản phẩm không tồn tại) hoặc lỗi mạng
   if (!product) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
           <Text style={styles.notFound}>
-            Đang tải từ cloud... (Mã sản phẩm: {productId})
+            {error instanceof Error ? error.message : 'Không tìm thấy sản phẩm'}
           </Text>
-          <Text style={styles.hint}>
-            Hãy quay lại Trang chủ để danh sách được tải vào Cache trước khi mở
-            lại link này.
-          </Text>
+          <Text style={styles.hint}>Mã sản phẩm: {productId}</Text>
         </View>
       </SafeAreaView>
     );
@@ -51,11 +65,7 @@ const ProductDetailScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Image
-          source={{ uri: product.image }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
         <Text style={styles.name}>{product.name}</Text>
         <Text style={styles.price}>
           {new Intl.NumberFormat('vi-VN', {

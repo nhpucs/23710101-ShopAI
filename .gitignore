@@ -78,6 +78,3 @@ yarn-error.log
 .expo
 dist/
 web-build/
-
-# Chương 8: API Key Gemini, KHÔNG BAO GIỜ commit (repo public)
-src/constants/geminiConfig.ts

@@ -15,7 +15,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS, SIZES } from '@constants/theme';
 import { AI_GREETING, AI_SUGGESTIONS } from '@constants/aiPrompt';
 import { useTheme } from '@contexts/ThemeContext';
-import { askShopAI, toFriendlyError, type ChatTurn } from '@services/geminiService';
+import { askShopAI, toFriendlyError, type ChatTurn } from '@services/aiChatService';
 
 type Message = {
   id: string;

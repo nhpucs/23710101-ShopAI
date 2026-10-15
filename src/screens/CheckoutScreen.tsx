@@ -20,9 +20,10 @@ import {
 import { COLORS, SIZES } from '@constants/theme';
 import { formatVnd } from '@utils/format';
 import { hapticError, hapticSuccess } from '@utils/haptics';
+import { getServerErrorMessage } from '@utils/serverError';
+import { createOrder, payOrder } from '@services/orderService';
 
 interface CreateOrderPayload {
-  orderId: string;
   items: CartItem[];
   totalPrice: number;
   paymentMethod: PaymentMethod;
@@ -37,26 +38,27 @@ interface CreateOrderResponse {
 // Lỗi riêng cho thẻ bị ngân hàng từ chối — để UI báo đúng lý do (giống 2 loại lỗi ở HomeScreen Ch.6)
 class PaymentDeclinedError extends Error {}
 
-// Ch.6: giả lập Server. Nay nhận thêm phương thức thanh toán:
-// Thẻ/MoMo trả xong ngay -> PAID | COD/Ngân hàng trả sau -> PENDING
-// Ch.9 Bước 9c: đổi thành axiosClient.post('/orders', payload) — CẤU TRÚC gọi không đổi.
-const createOrderLocal = async (
-  payload: CreateOrderPayload,
-): Promise<CreateOrderResponse> => {
-  await new Promise<void>(resolve => setTimeout(() => resolve(), 1200));
-
+// Ch.9 Bước 9c: đặt hàng THẬT trên Server NestJS (thay cho giả lập setTimeout của Ch.6).
+// Thẻ/MoMo trả xong ngay -> tạo đơn rồi gọi /pay -> PAID | COD/Ngân hàng trả sau -> PENDING
+const createOrderOnServer = async (payload: CreateOrderPayload): Promise<CreateOrderResponse> => {
+  // Cổng thanh toán vẫn là giả lập (Ch.6): thẻ có đuôi đặc biệt luôn bị từ chối, chưa tạo đơn
   if (payload.card?.number.endsWith(DECLINED_CARD_SUFFIX)) {
     throw new PaymentDeclinedError('Thẻ bị ngân hàng từ chối');
   }
 
+  // Server tự tính lại tổng tiền và từ chối (400) nếu không khớp — Phần 9.12
+  const order = await createOrder(payload.items, payload.totalPrice);
+
   const { paysImmediately } = getPaymentMethod(payload.paymentMethod);
-  return {
-    orderId: payload.orderId,
-    status: paysImmediately ? 'PAID' : 'PENDING',
-  };
+  if (paysImmediately) {
+    const paid = await payOrder(order.id);
+    return { orderId: paid.id, status: paid.status };
+  }
+  return { orderId: order.id, status: order.status };
 };
 
-// Mã đơn tạo 1 lần khi mở Checkout — dùng luôn làm "nội dung chuyển khoản" MoMo/Ngân hàng
+// Mã tham chiếu tạo 1 lần khi mở Checkout — làm "nội dung chuyển khoản" MoMo/Ngân hàng.
+// (Mã đơn thật do Server sinh, hiện ở màn hình kết quả.)
 const newOrderId = () => `ORD-${Date.now()}`;
 
 type Step = 'select' | 'pay';
@@ -76,37 +78,39 @@ const CheckoutScreen = () => {
   const [orderId] = useState(newOrderId);
 
   // useMutation: hành động GHI dữ liệu — CHỈ chạy khi ta gọi mutate(), không tự động như useQuery
-  const { mutate, isPending, isError, error, isSuccess, data, reset } =
-    useMutation({
-      mutationFn: createOrderLocal,
+  const { mutate, isPending, isError, error, isSuccess, data, reset } = useMutation({
+    mutationFn: createOrderOnServer,
 
-      // onSuccess: chạy SAU KHI "Server" xác nhận đặt hàng thành công
-      onSuccess: res => {
-        addOrder({
-          id: res.orderId,
-          items: [...items],
-          total: totalPrice,
-          status: res.status,
-          createdAt: new Date().toISOString(),
-          paymentMethod: method,
-          paymentBank: method === 'BANK' && bankId ? getBank(bankId)?.name : undefined,
-        });
-        if (res.status === 'PAID') hapticSuccess(); // 📳 Tiện ích rung Ch.7
-        clearCart(); // Giỏ hàng xóa sạch — persist cũng tự xóa theo
-        // Đơn mới có thể ảnh hưởng tồn kho -> đánh dấu Cache sản phẩm là "Thiu" (Stale)
-        queryClient.invalidateQueries({ queryKey: ['productsInfinite'] });
-        setTimeout(() => navigation.goBack(), 2500); // Đóng Modal sau 2.5s
-      },
+    // onSuccess: chạy SAU KHI "Server" xác nhận đặt hàng thành công
+    onSuccess: res => {
+      // Ch.9: đơn thật đã nằm trên Server. Bản lưu trong máy chỉ còn làm GHI CHÚ phương thức
+      // thanh toán (Server không lưu trường này) cho màn Chi tiết hoá đơn.
+      addOrder({
+        id: res.orderId,
+        items: [...items],
+        total: totalPrice,
+        status: res.status,
+        createdAt: new Date().toISOString(),
+        paymentMethod: method,
+        paymentBank: method === 'BANK' && bankId ? getBank(bankId)?.name : undefined,
+      });
+      if (res.status === 'PAID') hapticSuccess(); // 📳 Tiện ích rung Ch.7
+      clearCart(); // Giỏ hàng xóa sạch — persist cũng tự xóa theo
+      // Đơn mới có thể ảnh hưởng tồn kho -> đánh dấu Cache sản phẩm là "Thiu" (Stale)
+      queryClient.invalidateQueries({ queryKey: ['productsInfinite'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] }); // Ch.9 Bước 9f.3: tab Đơn hàng tải lại từ Server
+      setTimeout(() => navigation.goBack(), 2500); // Đóng Modal sau 2.5s
+    },
 
-      // onError: thẻ bị từ chối / mất mạng — KHÔNG xóa giỏ hàng, cho thử lại
-      onError: err => {
-        hapticError();
-        console.error('❌ Thanh toán thất bại:', err);
-      },
-    });
+    // onError: thẻ bị từ chối / mất mạng — KHÔNG xóa giỏ hàng, cho thử lại
+    onError: err => {
+      hapticError();
+      console.error('❌ Thanh toán thất bại:', err);
+    },
+  });
 
   const submit = (card?: CardData) => {
-    mutate({ orderId, items, totalPrice, paymentMethod: method, card });
+    mutate({ items, totalPrice, paymentMethod: method, card });
   };
 
   const backToSelect = () => {
@@ -130,8 +134,7 @@ const CheckoutScreen = () => {
             {method === 'BANK' && bankId ? ` (${getBank(bankId)?.name})` : ''}
           </Text>
           <Text style={styles.orderMeta}>
-            Trạng thái:{' '}
-            {paid ? 'PAID (đã thanh toán)' : 'PENDING (trả tiền khi nhận hàng)'}
+            Trạng thái: {paid ? 'PAID (đã thanh toán)' : 'PENDING (trả tiền khi nhận hàng)'}
           </Text>
         </View>
       </SafeAreaView>
@@ -141,15 +144,13 @@ const CheckoutScreen = () => {
   const errorMessage =
     error instanceof PaymentDeclinedError
       ? `💳 Thẻ bị từ chối — thử thẻ khác hoặc đổi phương thức. (Thẻ có đuôi ${DECLINED_CARD_SUFFIX} luôn bị từ chối để demo.)`
-      : 'Thanh toán thất bại — vui lòng kiểm tra mạng và thử lại!';
+      : // Ch.9: hiện đúng câu Server trả về (vd "Tổng tiền không khớp...", hết phiên đăng nhập)
+        getServerErrorMessage(error, 'Thanh toán thất bại — vui lòng kiểm tra mạng và thử lại!');
 
   return (
     // edges bottom: phía trên đã có header "Thanh toán" của Stack, không cần chừa tai thỏ nữa
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>
           {step === 'select' ? 'Xác nhận đơn hàng' : 'Hoàn tất thanh toán'}
         </Text>

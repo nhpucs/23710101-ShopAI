@@ -4,12 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCartStore } from '@store/useCartStore';
 import ShopButton from '@components/ShopButton';
 import { COLORS, SIZES } from '@constants/theme';
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(value);
+import { formatCurrency } from '@utils/formatCurrency'; // Ch.11: dùng chung, không viết tay nữa
 
 const CartScreen = ({ navigation }: any) => {
   const items = useCartStore(state => state.items);
@@ -65,14 +60,10 @@ const CartScreen = ({ navigation }: any) => {
 
       <View style={styles.footer}>
         <Text style={styles.totalLabel}>
-          Tổng cộng:{' '}
-          <Text style={styles.totalValue}>{formatCurrency(totalPrice)}</Text>
+          Tổng cộng: <Text style={styles.totalValue}>{formatCurrency(totalPrice)}</Text>
         </Text>
         {/* Checkout nằm ở tầng RootStackNavigator — React Navigation tự "nổi bọt" lên tầng cha để tìm */}
-        <ShopButton
-          title="Thanh toán"
-          onPress={() => navigation.navigate('Checkout')}
-        />
+        <ShopButton title="Thanh toán" onPress={() => navigation.navigate('Checkout')} />
       </View>
     </SafeAreaView>
   );

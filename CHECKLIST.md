@@ -16,8 +16,8 @@
 | 7 | Native Module & Quyền | ✅ |
 | 8 | Bảo mật & AI | ✅ |
 | 9 | Backend NestJS + Prisma | ✅ |
-| 10 | Môi trường, Crashlytics, Release & OTA | ⬜ |
-| 11 | Testing & CI/CD | ⬜ |
+| 10 | Môi trường, Crashlytics, Release & OTA | ✅ |
+| 11 | Testing & CI/CD | ✅ |
 
 > Xong chương nào thì đổi ⬜ thành ✅.
 
@@ -75,6 +75,7 @@
 - [x] List dữ liệu đến từ **Fetch** (không hardcode toàn bộ list)
 - [x] `App.tsx` render `HomeScreen` qua alias + `SafeAreaProvider`
 - [ ] `git commit` Sprint 2
+  - Không có commit riêng: code Ch.2–4 nằm chung trong commit Sprint 5 `2ed443f`.
 
 ---
 
@@ -97,6 +98,7 @@
 - [x] Pull-to-refresh hoạt động trên Home
 - [x] Tái sử dụng `ShopButton` từ Chương 3
 - [ ] `git commit` Sprint 4
+  - Không có commit riêng: code Ch.2–4 nằm chung trong commit Sprint 5 `2ed443f`.
 
 ---
 
@@ -256,7 +258,8 @@
 - [x] Không còn chỗ nào hardcode IP LAN ngoài `env.ts` (`api.ts` chỉ còn `export { API_BASE_URL } from './env'`)
 
 **Crashlytics:**
-- [ ] Firebase Crashlytics hoạt động, Dashboard nhận được Test Crash
+- [x] Firebase Crashlytics hoạt động, Dashboard nhận được Test Crash
+  - Firebase Console › ShopAI › Crashlytics (22/10/2026): bản 1.0.0 (10000), issue `java.lang.RuntimeException - Crash Test` tại `MessageQueueThreadImpl`, 1 event / 1 user.
 - [x] Nút test Crash chỉ có trong `__DEV__`
   - Dòng chữ xám `ShopAI v1.0.0 (Dev: nhấn giữ 2s...)` cuối HomeScreen, bọc `{__DEV__ && ...}`. Nhấn giữ trên emulator → app văng với `java.lang.RuntimeException: Crash Test`, mở lại thì Crashlytics gửi báo cáo.
 - [x] Lỗi fetch ở `HomeScreen` ghi Non-Fatal qua `recordError`, App không sập khi mất mạng
@@ -299,33 +302,46 @@
 ## Chương 11 – Testing & CI/CD
 
 **Tầng 1 — Unit Test (Jest):**
-- [ ] `formatCurrency` tách ra `src/utils/formatCurrency.ts`, có Unit Test PASS
-- [ ] `useCartStore.test.ts` PASS: `addItem` (gồm gộp số lượng), `removeItem`, `totalPrice`, `totalQuantity`, `clearCart`
-- [ ] `jest.setup.js` mock đủ Native Module (Crashlytics, SecureStore, AsyncStorage, Reanimated)
+- [x] `formatCurrency` tách ra `src/utils/formatCurrency.ts`, có Unit Test PASS
+  - Gom 6 chỗ tự viết `Intl.NumberFormat` (Cart, ProductCard, ProductDetail, Orders, OrderDetail, format.ts) về 1 hàm; `formatVnd` cũ chỉ còn là tên phụ. Test so sánh sau khi đổi khoảng trắng không ngắt (U+00A0) của `Intl` thành dấu cách.
+- [x] `useCartStore.test.ts` PASS: `addItem` (gồm gộp số lượng), `removeItem`, `totalPrice`, `totalQuantity`, `clearCart`
+- [x] `jest.setup.js` mock đủ Native Module (Crashlytics, SecureStore, AsyncStorage, Reanimated)
+  - Thêm cả expo-updates, LocalAuthentication, SafeArea, Vision Camera, Geolocation. Crashlytics bản 27 là API modular nên mock `getCrashlytics/log/recordError/...` chứ không mock `crashlytics()`. Mock có sẵn của Reanimated 4.6 vẫn nạp native → tự mock `useSharedValue/useAnimatedStyle/withTiming`. `__tests__/App.test.tsx` (đỏ từ trước) giờ xanh: mở app chưa đăng nhập → thấy "Đăng nhập ngay".
 
 **Tầng 2 — Integration Test (RNTL):**
-- [ ] **[Đề cương]** `ShopButton.test.tsx` PASS, kiểm tra cả `onPress` và `disabled`
+- [x] **[Đề cương]** `ShopButton.test.tsx` PASS, kiểm tra cả `onPress` và `disabled`
+  - Thêm 2 ca: đang `isLoading` thì ẩn chữ + không bấm được (chống đặt hàng 2 lần); `accessibilityLabel` mặc định = `title`.
 
 **Tầng 3 — E2E (Maestro):**
-- [ ] `maestro test .maestro/login_home.yaml` PASS, đúng UI thật của ShopAI
-- [ ] `maestro test .maestro/cart_checkout.yaml` PASS với Server NestJS đang bật
-- [ ] `appId` trong Maestro khớp `applicationId` trong `android/app/build.gradle`
+- [x] `maestro test .maestro/login_home.yaml` PASS, đúng UI thật của ShopAI
+  - Maestro 2.11.0 bản Windows để ngoài repo (`D:/Project/UmBoa/tools/maestro`). Phải chạy với `JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8`, không thì Java đọc yaml bằng cp1252, mọi chữ tiếng Việt không khớp. Thêm bước chờ "Đăng nhập ngay" + `waitForAnimationToEnd` trước khi tap (không thì tap trúng link Đăng ký khi bố cục còn đang đổi).
+- [x] `maestro test .maestro/cart_checkout.yaml` PASS với Server NestJS đang bật — `maestro test .maestro/`: 2/2 Flows Passed (1m44s)
+  - Lỗi gặp: khung cảnh báo LogBox "process.env.EXPO_OS is not defined" đè lên thanh tab và nút Thanh toán → tap trượt. Sửa tận gốc: `src/utils/expoEnv.ts` gán `EXPO_OS`, import đầu tiên trong `index.js` (babel vẫn dùng preset RN như Ch.8).
+- [x] `appId` trong Maestro khớp `applicationId` trong `android/app/build.gradle` (`com.shopai`, giáo trình ghi `com.shopai.app`)
 
 **Coverage & công cụ:**
-- [ ] `npm run test:coverage` chạy được, sinh `coverage/`
-- [ ] `coverageThreshold` đã cấu hình, test hiện tại vượt ngưỡng
-- [ ] `coverage/` có trong `.gitignore`
-- [ ] **[Đề cương]** Biết mở React Native DevTools (`j` trong Metro), hiểu vai trò Network Inspector của Flipper
+- [x] `npm run test:coverage` chạy được, sinh `coverage/`
+- [x] `coverageThreshold` đã cấu hình, test hiện tại vượt ngưỡng
+  - `formatCurrency.ts`, `useCartStore.ts`, `ShopButton.tsx` phủ 100%. Ngưỡng riêng: formatCurrency 90%, useCartStore 70%. Ngưỡng chung đặt 15% (sát mức đo được ~18%) thay vì 40% của giáo trình vì ShopAI có hơn 20 màn hình UI chưa test; chỉ được nâng dần.
+- [x] `coverage/` có trong `.gitignore`
+- [x] **[Đề cương]** Biết mở React Native DevTools (`j` trong Metro), hiểu vai trò Network Inspector của Flipper
+  - **Trả lời:** đang chạy Metro bấm `j` → DevTools mở trong Chrome: tab Components xem cây `HomeScreen → ProductCard → ShopButton`, tab Profiler xem component nào vẽ lại khi bấm "Mua ngay". Flipper (cũ, RN 0.73+ không bật sẵn) có Network Inspector xem từng request `axiosClient` có header `Authorization: Bearer` hay không.
 
 **CI/CD:**
-- [ ] `.github/workflows/ci.yml` tự chạy khi `git push`, có Lint và Test
-- [ ] Pipeline có Matrix nhiều phiên bản Node, có Cache, upload Artifact coverage
+- [x] `.github/workflows/ci.yml` tự chạy khi `git push`, có Lint và Test
+  - Job `lint` (ESLint + `tsc --noEmit`) → `test` → `build-android` (chỉ nhánh main). Trước đó `npm run lint` có 1 error cũ (`e` không dùng trong `useAuthStore`) — đã sửa để CI không đỏ. `google-services.json` không commit nên job build dùng secret `GOOGLE_SERVICES_JSON` nếu có, không thì chép file mẫu.
+- [x] Pipeline có Matrix nhiều phiên bản Node, có Cache, upload Artifact coverage
+  - Matrix Node `22.x`/`24.x` (RN 0.87 đòi Node ^22.13 hoặc ^24.3 nên bỏ 18/20 của giáo trình), cache npm + Gradle, artifact `coverage-report` và `shopai-debug-apk`.
 - [ ] *(Tùy chọn)* Husky + lint-staged chạy khi `git commit`
-- [ ] Hiểu ranh giới: CI bắt buộc nắm; CD (Fastlane) là kiến thức mở rộng
+- [x] Hiểu ranh giới: CI bắt buộc nắm; CD (Fastlane) là kiến thức mở rộng
+  - **Trả lời:** CI (lint + test + build mỗi lần push) chạy được ngay với tài khoản GitHub miễn phí. CD (Fastlane `upload_to_play_store`/`upload_to_testflight`) cần Service Account Google Play / API Key Apple thật — ShopAI chưa có nên chỉ dừng ở hiểu cấu trúc `GitHub Actions (Test) → Fastlane (Build) → Store (Submit)`.
 
 **Tầng 4 — Backend NestJS (Jest + Supertest):**
-- [ ] `AuthModule` + Prisma + `JwtAuthGuard` từ Sprint 9 còn nguyên
-- [ ] `src/auth/auth.service.spec.ts` PASS — `login` thành công, `validateUser` ném `UnauthorizedException` ở cả 2 nhánh sai email/sai mật khẩu
-- [ ] `test/auth-orders.e2e-spec.ts` PASS — login trả `accessToken`; `POST /api/orders` trả `401` khi thiếu Token, `201` khi có Token
-- [ ] `npm run test:e2e` (trong `shopai-backend`) chạy sạch, không treo (có `afterAll(() => app.close())`)
-- [ ] *(Tùy chọn)* Job `backend-test` chạy trong CI, độc lập với job `test` của Mobile
+- [x] `AuthModule` + Prisma + `JwtAuthGuard` từ Sprint 9 còn nguyên (chỉ thêm file `*.spec.ts`, không sửa `auth.service.ts`/`auth.module.ts`)
+- [x] `src/auth/auth.service.spec.ts` PASS — `login` thành công, `validateUser` ném `UnauthorizedException` ở cả 2 nhánh sai email/sai mật khẩu
+  - Code Ch.9: `validateUser` trả `null`, `login` mới ném `UnauthorizedException` → test kiểm cả hai đúng như code thật. Thêm: không lộ `password`, `register` trùng email → 409, mật khẩu lưu dạng hash bcrypt. Viết thêm `order.service.spec.ts` (tự tính tiền, chặn tổng tiền gian lận, không xem đơn người khác, Pay 2 lần không lỗi). 5 file spec do `nest g` sinh ở Ch.9 đang đỏ vì thiếu provider → đã sửa. Kết quả `npm test`: 9 suite / 27 test PASS.
+- [x] `test/auth-orders.e2e-spec.ts` PASS — login trả `accessToken`; `POST /api/orders` trả `401` khi thiếu Token, `201` khi có Token
+  - Login ShopAI trả **200** (đã đặt `@HttpCode(OK)` ở Ch.9) chứ không phải 201 như giáo trình. Thêm ca Token giả → 401 và tổng tiền gian lận → 400.
+- [x] `npm run test:e2e` (trong `shopai-backend`) chạy sạch, không treo (có `afterAll(() => app.close())`) — 2 suite / 8 test PASS
+- [x] *(Tùy chọn)* Job `backend-test` chạy trong CI, độc lập với job `test` của Mobile
+  - Backend là repo riêng nên `ci.yml` nằm trong `shopai-backend`: oxlint → unit test → `prisma migrate deploy` + `db seed` trên SQLite mới → e2e. Đã chạy thử đúng các bước này ở máy với DB mới tinh: 8/8 PASS.

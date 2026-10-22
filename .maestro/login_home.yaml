@@ -1,0 +1,12 @@
+# Chương 11 (Bước 3): Đăng nhập -> Trang chủ
+# appId lấy đúng applicationId trong android/app/build.gradle (giáo trình ghi com.shopai.app là của dự án mẫu)
+appId: com.shopai
+---
+- launchApp:
+    clearState: true # Xoá token cũ -> lần nào chạy cũng bắt đầu từ màn Đăng nhập
+- runFlow: subflows/login.yaml
+- assertVisible: "Khám phá"
+# Bottom Tab (Chương 5) dựng đủ sau khi đăng nhập
+- assertVisible: "Trang chủ"
+- assertVisible: "Giỏ hàng"
+- assertVisible: "Đơn hàng"

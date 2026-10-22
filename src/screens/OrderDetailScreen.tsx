@@ -13,6 +13,7 @@ import { RootStackParamList } from '@navigation/RootStackNavigator';
 import { PaymentMethod, getPaymentMethod } from '@constants/payment';
 import { hapticError, hapticSuccess } from '@utils/haptics';
 import { getServerErrorMessage } from '@utils/serverError';
+import { formatCurrency } from '@utils/formatCurrency';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderDetail'>;
 
@@ -24,9 +25,6 @@ const PAY_BUTTON_TITLE: Record<PaymentMethod | 'DEFAULT', string> = {
   MOMO: 'Thanh toán giả lập (→ PAID)',
   DEFAULT: 'Thanh toán giả lập (→ PAID)',
 };
-
-const formatCurrency = (v: number) =>
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 
 const OrderDetailScreen = ({ route }: Props) => {
   const { orderId } = route.params;

@@ -1,0 +1,24 @@
+# Đăng nhập bằng tài khoản seed Chương 9 — dùng lại ở mọi flow bằng runFlow
+# Windows: chạy Maestro với JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8, không thì Java đọc yaml bằng
+# cp1252 và mọi chữ tiếng Việt ("Ít nhất 6 ký tự", "Khám phá"...) đều không tìm thấy.
+appId: com.shopai
+---
+# Chờ App kiểm tra SecureStore xong và màn Đăng nhập đứng yên, không thì toạ độ còn đang đổi
+# -> cú tap đầu tiên trúng link "Đăng ký" ở dưới
+- extendedWaitUntil:
+    visible: "Đăng nhập ngay"
+    timeout: 20000
+- waitForAnimationToEnd
+# Tap vào PLACEHOLDER trong ô nhập, không tap vào label phía trên (label không focus được ô)
+- tapOn: "you@example.com"
+# Emulator máy mình gõ ~10s/ký tự, một lệnh inputText quá 120s là Maestro báo chết
+# -> tách email làm 2 lần gõ cho mỗi lần dưới giới hạn
+- inputText: "demo@shopai"
+- inputText: ".com"
+- tapOn: "Ít nhất 6 ký tự"
+- inputText: "123456"
+- hideKeyboard
+- tapOn: "Đăng nhập ngay"
+- extendedWaitUntil:
+    visible: "Khám phá"
+    timeout: 15000

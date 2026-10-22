@@ -1,5 +1,3 @@
 /** Định dạng tiền Việt: 1500000 -> "1.500.000 ₫" */
-export const formatVnd = (value: number) =>
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
-    value,
-  );
+// Chương 11: giờ chỉ là tên cũ của formatCurrency, giữ lại để các file payment không phải sửa import
+export { formatCurrency as formatVnd } from './formatCurrency';

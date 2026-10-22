@@ -1,14 +1,11 @@
 import React, { memo, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { COLORS, SIZES } from '@constants/theme';
 import ShopButton from '@components/ShopButton';
 import { Product } from '../types/product.schema'; // Đổi nguồn Type sang Zod Schema
 import { useCartStore } from '@store/useCartStore';
+import { formatCurrency } from '@utils/formatCurrency';
 
 // Lấy chiều rộng màn hình để tính kích thước cột (Grid 2 cột, có khe hở đều 2 bên)
 const { width } = Dimensions.get('window');
@@ -35,21 +32,12 @@ const ProductCard = ({ product }: Props) => {
 
   return (
     <Animated.View style={[styles.card, fadeInStyle]}>
-      <Image
-        source={{ uri: product.image }}
-        style={styles.image}
-        resizeMode="cover"
-      />
+      <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
       <View style={styles.infoContainer}>
         <Text style={styles.name} numberOfLines={2}>
           {product.name}
         </Text>
-        <Text style={styles.price}>
-          {new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND',
-          }).format(product.price)}
-        </Text>
+        <Text style={styles.price}>{formatCurrency(product.price)}</Text>
 
         {/* Tái sử dụng Nút bấm từ Sprint 3 */}
         <ShopButton

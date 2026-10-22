@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>(set => ({
         set({ token: storedToken }); // Tìm thấy Token -> Đăng nhập luôn!
       }
     } catch (e) {
-      console.log('Lỗi Keystore');
+      console.log('Lỗi Keystore', e);
     } finally {
       set({ isLoading: false }); // Kiểm tra xong, tắt vòng xoay Loading
     }

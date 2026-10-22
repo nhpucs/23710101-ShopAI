@@ -8,6 +8,7 @@ import { useCartStore } from '@store/useCartStore';
 import { COLORS, SIZES } from '@constants/theme';
 import type { HomeStackParamList } from '@navigation/HomeStackNavigator';
 import { fetchProductById, ProductPage } from '@services/productService';
+import { formatCurrency } from '@utils/formatCurrency';
 
 type ProductDetailRouteProp = RouteProp<HomeStackParamList, 'ProductDetail'>;
 
@@ -67,12 +68,7 @@ const ProductDetailScreen = () => {
       <ScrollView contentContainerStyle={styles.container}>
         <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
         <Text style={styles.name}>{product.name}</Text>
-        <Text style={styles.price}>
-          {new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND',
-          }).format(product.price)}
-        </Text>
+        <Text style={styles.price}>{formatCurrency(product.price)}</Text>
         <Text style={styles.idNote}>Mã sản phẩm: {product.id}</Text>
         <ShopButton
           title="Thêm vào giỏ hàng"

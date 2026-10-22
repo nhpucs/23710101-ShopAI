@@ -1,0 +1,101 @@
+name: ShopAI CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ===== JOB 1: Kiểm tra chất lượng mã nguồn =====
+  lint:
+    name: Lint & TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      # package-lock.json được tạo bằng npm 11; npm 10 đi kèm Node 22 kiểm peer gắt hơn và báo lock
+      # "thiếu react-native-worklets@0.10.4" (lệch peer có sẵn từ expo-modules-core) -> dùng cùng npm 11
+      - run: npm install -g npm@11
+      - run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Kiểm tra kiểu TypeScript
+        run: npm run typecheck # Bắt lỗi kiểu mà ESLint bỏ qua
+
+  # ===== JOB 2: Chạy test trên nhiều phiên bản Node song song =====
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    needs: lint # Lint đỏ thì không tốn tài nguyên chạy test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Một bản Node đỏ vẫn chạy tiếp bản còn lại để biết lỗi ở đâu
+      matrix:
+        # RN 0.87 yêu cầu Node ^22.13 hoặc ^24.3 -> không dùng Node 18/20 như giáo trình
+        node-version: ['22.x', '24.x']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm' # Cache thư mục ~/.npm theo package-lock.json
+      # package-lock.json được tạo bằng npm 11; npm 10 đi kèm Node 22 kiểm peer gắt hơn và báo lock
+      # "thiếu react-native-worklets@0.10.4" (lệch peer có sẵn từ expo-modules-core) -> dùng cùng npm 11
+      - run: npm install -g npm@11
+      - run: npm ci
+      - name: Chạy toàn bộ test kèm coverage
+        run: npm run test:ci
+      # Chỉ tải báo cáo lên một lần, tránh trùng giữa các bản Node
+      - name: Lưu báo cáo coverage
+        if: always() && matrix.node-version == '22.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ===== JOB 3: Build APK debug cho QA tải về =====
+  build-android:
+    name: Build Debug APK
+    needs: test
+    if: github.ref == 'refs/heads/main' # Chỉ build trên main, không build mọi PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'npm' }
+      - uses: actions/setup-java@v4
+        with: { distribution: 'temurin', java-version: '17' }
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+      # package-lock.json được tạo bằng npm 11; npm 10 đi kèm Node 22 kiểm peer gắt hơn và báo lock
+      # "thiếu react-native-worklets@0.10.4" (lệch peer có sẵn từ expo-modules-core) -> dùng cùng npm 11
+      - run: npm install -g npm@11
+      - run: npm ci
+      # google-services.json không commit (repo public). Có secret thì dùng file thật,
+      # không có thì dùng file mẫu cho đủ để plugin google-services build được.
+      - name: Chuẩn bị google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          else
+            cp android/app/google-services.example.json android/app/google-services.json
+          fi
+      - name: Đóng gói APK
+        run: cd android && ./gradlew assembleDebug --no-daemon
+      - name: Lưu APK cho QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: shopai-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14

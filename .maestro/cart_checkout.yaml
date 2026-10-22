@@ -1,0 +1,42 @@
+# Chương 11 (Bước 4c): Đăng nhập -> thêm hàng -> Giỏ hàng -> Thanh toán COD -> đơn PENDING trên NestJS
+# CẦN server shopai-backend đang chạy (npm run start:dev). Server tắt thì flow FAIL — đúng thiết kế.
+appId: com.shopai
+---
+- launchApp:
+    clearState: true # Xoá giỏ hàng persist của lần chạy trước -> kết quả lặp lại được
+- runFlow: subflows/login.yaml
+
+# ===== BƯỚC 1: danh sách sản phẩm đã tải từ NestJS (Chương 9) =====
+- extendedWaitUntil:
+    visible: "iPhone Duo 256GB.*"
+    timeout: 15000
+
+# ===== BƯỚC 2: mở chi tiết, thêm vào giỏ =====
+- tapOn: "iPhone Duo 256GB.*"
+- extendedWaitUntil:
+    visible: "Thêm vào giỏ hàng"
+    timeout: 10000
+- tapOn: "Thêm vào giỏ hàng"
+- back
+
+# ===== BƯỚC 3: Tab Giỏ hàng (MainTabNavigator, Chương 5) =====
+# Huy hiệu trên icon giỏ ở header phải đếm đúng 1 món (accessibilityLabel từ Ch.3)
+- assertVisible: "Giỏ hàng, 1 sản phẩm"
+- tapOn: "Giỏ hàng"
+- assertVisible: "Giỏ hàng của bạn"
+- assertVisible: "iPhone Duo 256GB.*"
+- assertVisible: "Tổng cộng.*"
+
+# ===== BƯỚC 4: Modal Thanh toán (RootStackNavigator) — mặc định đã chọn COD =====
+- tapOn: "Thanh toán"
+- assertVisible: "Xác nhận đơn hàng"
+- tapOn: "Tiếp tục"
+- assertVisible: "Xác nhận đặt hàng"
+
+# ===== BƯỚC 5: đặt hàng thật lên NestJS (Chương 9, Bước 9c) =====
+- tapOn: "Xác nhận đặt hàng"
+- extendedWaitUntil:
+    visible: "Đặt hàng thành công!"
+    timeout: 15000
+- assertVisible: "Mã đơn: ORD-.*" # Regex: chỉ cần đúng định dạng mã do Server sinh
+- assertVisible: "Trạng thái: PENDING.*"

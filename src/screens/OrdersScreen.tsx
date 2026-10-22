@@ -7,9 +7,7 @@ import { useAuthStore } from '@store/useAuthStore';
 import { getMyOrders } from '@services/orderService';
 import { getServerErrorMessage } from '@utils/serverError';
 import { COLORS, SIZES } from '@constants/theme';
-
-const formatCurrency = (v: number) =>
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
+import { formatCurrency } from '@utils/formatCurrency';
 
 const OrdersScreen = () => {
   const navigation = useNavigation<any>();

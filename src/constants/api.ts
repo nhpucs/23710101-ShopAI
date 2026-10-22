@@ -1,12 +1,6 @@
-/**
- * Nơi DUY NHẤT khai báo địa chỉ máy chủ NestJS (Chương 9).
- * Đổi môi trường chạy app thì chỉ sửa đúng dòng API_BASE_URL bên dưới:
- *   - Android Emulator:  'http://10.0.2.2:3000'  (cửa sổ đặc biệt nhìn về máy tính)
- *   - Điện thoại thật:   'http://<IP LAN máy tính>:3000'  (xem bằng ipconfig, cùng Wi-Fi)
- *   - iOS Simulator:     'http://localhost:3000'
- * KHÔNG dùng localhost trên Android: localhost lúc đó là CHÍNH điện thoại (Phần 9.4).
- */
-export const API_BASE_URL = 'http://10.0.2.2:3000';
+// Chương 10: địa chỉ Server giờ suy ra theo môi trường trong env.ts — ở đây chỉ tái xuất,
+// nên mọi file đang import API_BASE_URL từ '@constants/api' không phải sửa dòng nào.
+export { API_BASE_URL } from './env';
 
 /** Số sản phẩm mỗi trang — dùng chung cho cả lời gọi API lẫn logic phân trang. */
 export const PAGE_SIZE = 10;

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getCrashlytics, recordError } from '@react-native-firebase/crashlytics';
 import axiosClient from '@api/axiosClient';
 import { PAGE_SIZE } from '@constants/api';
 import { Product, ProductListSchema, ProductSchema } from '../types/product.schema';
@@ -27,14 +28,19 @@ export const fetchAllProducts = async (): Promise<Product[]> => {
   } catch (e) {
     // Server tắt, sai địa chỉ, quá thời gian chờ... -> quy về MỘT loại lỗi cho UI
     console.error('📡 Lỗi mạng khi gọi Server NestJS:', e);
-    throw new NetworkError('Không kết nối được tới Server ShopAI!');
+    const err = new NetworkError('Không kết nối được tới Server ShopAI!');
+    // Chương 10 (Bước 4): lỗi Non-Fatal — app không sập, nhưng Firebase vẫn biết có người không tải được hàng
+    recordError(getCrashlytics(), err, 'ProductFetchFailed');
+    throw err;
   }
 
   // TRẠM KIỂM SOÁT ZOD (giữ từ Chương 2/6): không vì Server là hàng nhà mình mà bỏ qua
   const result = ProductListSchema.safeParse(raw);
   if (!result.success) {
     console.error('❌ Zod chặn dữ liệu bẩn từ Server:', result.error.format());
-    throw new ZodValidationError('Dữ liệu sản phẩm không hợp lệ!');
+    const err = new ZodValidationError('Dữ liệu sản phẩm không hợp lệ!');
+    recordError(getCrashlytics(), err, 'ProductFetchFailed');
+    throw err;
   }
   return result.data;
 };

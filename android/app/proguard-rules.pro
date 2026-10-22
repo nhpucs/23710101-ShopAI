@@ -8,3 +8,8 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# Chương 10 (Phần 10.7): giữ số dòng cho báo cáo lỗi Crashlytics, không cho R8 xoá class Exception/Firebase
+-keepattributes SourceFile,LineNumberTable
+-keep public class * extends java.lang.Exception
+-keep class com.google.firebase.** { *; }

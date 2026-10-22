@@ -78,3 +78,12 @@ yarn-error.log
 .expo
 dist/
 web-build/
+
+# Chuong 10: mat khau ky ban Release (file .keystore da chan boi *.keystore o tren)
+android/keystore.properties
+# Chuong 10: khoa dich vu Google Play cho eas submit
+google-play-service-account.json
+# Chuong 10: cau hinh Firebase (co API key) - khong dua len repo public.
+# Tai file that tu Firebase Console (package com.shopai) roi dat vao android/app/.
+# Xem mau o android/app/google-services.example.json
+android/app/google-services.json

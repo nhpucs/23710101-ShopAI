@@ -3,5 +3,17 @@
   "displayName": "ShopAI",
   "plugins": [
     "expo-secure-store"
-  ]
+  ],
+  "extra": {
+    "eas": {
+      "projectId": "f55befc1-05e1-4329-b095-c1f8bb46b8d5"
+    }
+  },
+  "owner": "nhpucs",
+  "updates": {
+    "url": "https://u.expo.dev/f55befc1-05e1-4329-b095-c1f8bb46b8d5"
+  },
+  "android": {
+    "runtimeVersion": "1.0.0"
+  }
 }

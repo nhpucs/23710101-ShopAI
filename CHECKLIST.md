@@ -252,33 +252,47 @@
 ## Chương 10 – Môi trường, Crashlytics, Release & OTA
 
 **Cấu hình môi trường:**
-- [ ] `src/constants/env.ts` khai báo đủ `APP_ENV`, `API_BASE_URL`, `ENABLE_CRASHLYTICS`
-- [ ] Không còn chỗ nào hardcode IP LAN ngoài `env.ts`
+- [x] `src/constants/env.ts` khai báo đủ `APP_ENV`, `API_BASE_URL`, `ENABLE_CRASHLYTICS`
+- [x] Không còn chỗ nào hardcode IP LAN ngoài `env.ts` (`api.ts` chỉ còn `export { API_BASE_URL } from './env'`)
 
 **Crashlytics:**
 - [ ] Firebase Crashlytics hoạt động, Dashboard nhận được Test Crash
-- [ ] Nút test Crash chỉ có trong `__DEV__`
-- [ ] Lỗi fetch ở `HomeScreen` ghi Non-Fatal qua `recordError`, App không sập khi mất mạng
-- [ ] Lỗi đặt hàng ở `CheckoutScreen` ghi với tên `CheckoutOrderFailed`, kèm Breadcrumb và Custom Keys
-- [ ] `mappingFileUploadEnabled true` đã bật cho `buildTypes.release`
+- [x] Nút test Crash chỉ có trong `__DEV__`
+  - Dòng chữ xám `ShopAI v1.0.0 (Dev: nhấn giữ 2s...)` cuối HomeScreen, bọc `{__DEV__ && ...}`. Nhấn giữ trên emulator → app văng với `java.lang.RuntimeException: Crash Test`, mở lại thì Crashlytics gửi báo cáo.
+- [x] Lỗi fetch ở `HomeScreen` ghi Non-Fatal qua `recordError`, App không sập khi mất mạng
+  - Ghi ở `productService.fetchAllProducts` (tên nhóm `ProductFetchFailed`). Đã thử: tắt NestJS, kéo xuống làm mới → hiện "📡 Lỗi mạng...", danh sách cũ vẫn còn, app không sập.
+- [x] Lỗi đặt hàng ở `CheckoutScreen` ghi với tên `CheckoutOrderFailed`, kèm Breadcrumb và Custom Keys
+  - `log` + `setAttributes` (screen, cart_item_count, cart_total, payment_method, app_env, api_base_url) trước khi gọi server; `recordError(..., 'CheckoutOrderFailed')` trong `onError` của `useMutation`. Đã thử: tắt NestJS, đặt COD → báo lỗi đỏ, **giỏ hàng còn nguyên**.
+- [x] `mappingFileUploadEnabled true` đã bật cho `buildTypes.release`
 
 **Không phá vỡ tính năng cũ:**
-- [ ] `App.tsx` còn đủ `SafeAreaProvider`, `QueryClientProvider`, `NavigationContainer`, `AuthStack`, `MainTabNavigator`
-- [ ] Toàn bộ luồng Chương 9 (sản phẩm, chi tiết, đặt hàng, chat AI) vẫn chạy đúng
+- [x] `App.tsx` còn đủ `SafeAreaProvider`, `QueryClientProvider`, `NavigationContainer`, `AuthStack`, `MainTabNavigator`
+  - Chỉ THÊM 2 `useEffect` (log khởi động + kiểm tra OTA). Redux `Provider`, `ThemeProvider`, `linking`, `BiometricGate`, `useAppLock` giữ nguyên; `MainTabNavigator` nằm trong `RootStackNavigator` từ Ch.6.
+- [x] Toàn bộ luồng Chương 9 (sản phẩm, chi tiết, đặt hàng, chat AI) vẫn chạy đúng
+  - Trang chủ tải 29 sản phẩm từ NestJS; Maestro `cart_checkout.yaml` đi hết Đăng nhập → Chi tiết → Thêm giỏ → Thanh toán COD → "Đặt hàng thành công!" + mã `ORD-...` PENDING.
 
 **Release & OTA:**
-- [ ] Đã tạo `shopai-release.keystore`, **đã sao lưu**, `.gitignore` đã chặn
-- [ ] `./gradlew bundleRelease` thành công, sinh `app-release.aab` đã ký
-- [ ] Bản Release chạy được trên máy thật (R8 không làm crash)
-- [ ] `eas.json` đủ 3 profile `development` / `preview` / `production`
-- [ ] Hiểu: EAS Update/`code-push-server` chỉ vá JS, không vá Native; không dùng CodePush/App Center (ngừng từ 3/2025)
-- [ ] Biết rollback OTA lỗi bằng `eas update:republish` hoặc `eas channel:edit`
+- [x] Đã tạo `shopai-release.keystore`, **đã sao lưu**, `.gitignore` đã chặn
+  - Sao lưu: gửi email cho chính mình (đính kèm keystore + `keystore.properties`). Mật khẩu nằm trong `android/keystore.properties`, cũng bị `.gitignore` chặn.
+- [x] `./gradlew bundleRelease` thành công, sinh `app-release.aab` đã ký
+  - `assembleRelease` + `bundleRelease` BUILD SUCCESSFUL: `app-release.apk` 117 MB, `app-release.aab` 80,5 MB, ký bằng `CN=ShopAI, OU=Mobile Team` (apksigner verify). Task `uploadCrashlyticsMappingFileRelease` đã chạy.
+  - Lỗi gặp: Gradle 9 báo `createBundleReleaseJsAndAssets` dùng output của task khác. Gốc rễ: dòng `cliFile` (install-expo-modules thêm ở Ch.8) `require.resolve('@expo/cli')` trả chuỗi rỗng vì `@expo/cli` nằm trong `node_modules/expo/node_modules` → cliFile thành thư mục `android/app`. Sửa: resolve từ chỗ gói `expo`.
+- [x] Bản Release chạy được trên máy thật (R8 không làm crash)
+  - Cài `app-release.apk` lên emulator Pixel_6: mở được, không crash, không có khung dev. Đăng nhập báo "Không kết nối được tới máy chủ ShopAI" — đúng thiết kế vì bản production trỏ `https://api.shopai.com` (chưa deploy).
+- [x] `eas.json` đủ 3 profile `development` / `preview` / `production`
+- [x] Hiểu: EAS Update/`code-push-server` chỉ vá JS, không vá Native; không dùng CodePush/App Center (ngừng từ 3/2025)
+  - **Trả lời:** OTA chỉ thay file `index.android.bundle` (JS + ảnh). Thêm thư viện có thư mục `android/` (như Firebase, expo-updates ở chương này) hay sửa `build.gradle`/`AndroidManifest` là đổi tầng Native → phải build lại và nộp Store. `runtimeVersion` (ShopAI để `1.0.0` khớp `versionName`) là chốt chặn: bản vá chỉ tới app cùng runtime, nên JS mới cần module Native mới không bị đẩy nhầm xuống app cũ.
+- [x] Biết rollback OTA lỗi bằng `eas update:republish` hoặc `eas channel:edit`
+  - **Trả lời:** `eas update:list --branch production` lấy `group id` của bản tốt gần nhất → `eas update:republish --group <id>` đẩy lại đúng bản đó. Hoặc trỏ cả kênh sang nhánh an toàn: `eas channel:edit production --branch production-safe`. Channel nằm cứng trong app, branch nằm trên mây nên đổi được ngay.
 
 **iOS & EAS Build:**
-- [ ] Hoàn thành Bundle ID + Automatic Signing + Team trên Xcode (nếu có Mac), HOẶC ghi rõ lý do bỏ qua
-- [ ] Chạy được `npx react-native run-ios --mode Release` (nếu có Mac) hoặc nắm quy trình Archive → TestFlight
-- [ ] Chạy thành công **ít nhất một**: `eas build --platform android --profile preview` HOẶC `./gradlew bundleRelease`
-- [ ] Biết chọn Cloud (EAS Build) hay Local cho từng tình huống
+- [x] Hoàn thành Bundle ID + Automatic Signing + Team trên Xcode (nếu có Mac), HOẶC ghi rõ lý do bỏ qua
+  - **Lý do bỏ qua:** máy làm bài là Windows, không có macOS/Xcode và chưa có tài khoản Apple Developer (99 USD/năm). Dự án chỉ build Android; minh chứng Release dùng `./gradlew bundleRelease`.
+- [x] Chạy được `npx react-native run-ios --mode Release` (nếu có Mac) hoặc nắm quy trình Archive → TestFlight
+  - **Trả lời:** mở `ios/ShopAI.xcworkspace` → chọn "Any iOS Device (arm64)" (Simulator không Archive được) → Product › Archive → Organizer › Distribute App › App Store Connect › Upload → chờ Apple xử lý → tab TestFlight thêm Internal Tester. Mỗi lần nộp phải tăng `CFBundleVersion`.
+- [x] Chạy thành công **ít nhất một**: `eas build --platform android --profile preview` HOẶC `./gradlew bundleRelease` (chọn Local — xem trên)
+- [x] Biết chọn Cloud (EAS Build) hay Local cho từng tình huống
+  - **Trả lời:** đang học, có Android Studio, cần lặp nhanh → Local (`gradlew`). Cần file `.ipa` mà không có Mac, hoặc máy yếu → EAS Build Cloud. Có CI riêng (Ch.11) → Local trên runner CI. ShopAI chọn Local vì gói miễn phí EAS phải xếp hàng, và keystore đã nằm sẵn trên máy.
 
 ---
 

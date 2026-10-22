@@ -35,5 +35,14 @@
             <data android:scheme="shopai" />
         </intent-filter>
       </activity>
+      <!-- Chương 10: EAS Update (OTA) - cấu hình do eas update:configure sinh ra -->
+      <meta-data android:name="expo.modules.updates.ENABLED" android:value="true" />
+      <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS" />
+      <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0" />
+      <meta-data android:name="expo.modules.updates.EXPO_UPDATE_URL" android:value="https://u.expo.dev/f55befc1-05e1-4329-b095-c1f8bb46b8d5" />
+      <meta-data android:name="expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT" android:value="true" />
+      <meta-data android:name="expo.modules.updates.EXPO_RUNTIME_VERSION" android:value="@string/expo_runtime_version" />
+      <!-- Build tại máy (gradlew) không có EAS gắn channel hộ, nên tự khai báo kênh production -->
+      <meta-data android:name="expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY" android:value="{&quot;expo-channel-name&quot;:&quot;production&quot;}" />
     </application>
 </manifest>

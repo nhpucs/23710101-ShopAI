@@ -18,6 +18,16 @@ import LocationBadge from '@components/LocationBadge';
 import ThemeToggle from '@components/ThemeToggle';
 import FlashSaleBar from '@components/FlashSaleBar';
 import { useTheme } from '@contexts/ThemeContext';
+import { crash, getCrashlytics, log, setUserId } from '@react-native-firebase/crashlytics';
+import { APP_VERSION } from '@constants/env';
+
+// Chương 10 (Bước 3): cố ý làm sập app để thử Crashlytics. Chỉ gọi được từ dòng chữ ẩn bên dưới.
+const triggerTestCrash = () => {
+  const c = getCrashlytics();
+  log(c, 'Dev nhấn giữ dòng phiên bản để test crash...');
+  setUserId(c, 'dev_tester_999');
+  crash(c);
+};
 
 // HomeScreen cần navigate ở CẢ 2 tầng: trong Stack (ProductDetail) VÀ sang Tab cha (Cart)
 type Props = CompositeScreenProps<
@@ -196,6 +206,15 @@ const HomeScreen = ({ navigation, route }: Props) => {
             }
           />
         )}
+
+        {/* ➕ Chương 10 — cửa sau test Crashlytics: chỉ có ở bản dev, nhấn giữ 2 giây mới chạy */}
+        {__DEV__ && (
+          <Pressable onLongPress={triggerTestCrash} delayLongPress={2000} style={styles.devCrash}>
+            <Text style={styles.devCrashText}>
+              ShopAI v{APP_VERSION} (Dev: nhấn giữ 2s để test Crashlytics)
+            </Text>
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -282,6 +301,9 @@ const styles = StyleSheet.create({
   footerLoader: { marginVertical: 16 },
   scanResult: { backgroundColor: '#FFF3CD', padding: 10, alignItems: 'center' },
   scanResultText: { fontWeight: 'bold', color: COLORS.text },
+  // Chữ nhỏ, xám mờ — người dùng bình thường sẽ không để ý
+  devCrash: { padding: 8 },
+  devCrashText: { textAlign: 'center', fontSize: 10, color: '#ccc' },
 });
 
 export default HomeScreen;

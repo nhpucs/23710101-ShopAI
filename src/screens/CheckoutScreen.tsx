@@ -22,6 +22,13 @@ import { formatVnd } from '@utils/format';
 import { hapticError, hapticSuccess } from '@utils/haptics';
 import { getServerErrorMessage } from '@utils/serverError';
 import { createOrder, payOrder } from '@services/orderService';
+import {
+  getCrashlytics,
+  log,
+  recordError,
+  setAttributes,
+} from '@react-native-firebase/crashlytics';
+import { APP_ENV, API_BASE_URL } from '@constants/env';
 
 interface CreateOrderPayload {
   items: CartItem[];
@@ -83,6 +90,7 @@ const CheckoutScreen = () => {
 
     // onSuccess: chạy SAU KHI "Server" xác nhận đặt hàng thành công
     onSuccess: res => {
+      log(getCrashlytics(), `Checkout: đặt hàng THÀNH CÔNG, orderId = ${res.orderId}`);
       // Ch.9: đơn thật đã nằm trên Server. Bản lưu trong máy chỉ còn làm GHI CHÚ phương thức
       // thanh toán (Server không lưu trường này) cho màn Chi tiết hoá đơn.
       addOrder({
@@ -106,10 +114,25 @@ const CheckoutScreen = () => {
     onError: err => {
       hapticError();
       console.error('❌ Thanh toán thất bại:', err);
+      // Ch.10 Bước 4b: lỗi dính tới TIỀN -> ghi Non-Fatal, đặt tên nhóm riêng để lọc trên Dashboard
+      const c = getCrashlytics();
+      log(c, `Checkout: đặt hàng THẤT BẠI - ${err.message}`);
+      recordError(c, err, 'CheckoutOrderFailed');
     },
   });
 
   const submit = (card?: CardData) => {
+    // Ch.10: rắc vụn bánh mì + gắn bối cảnh TRƯỚC khi gọi Server, để nếu lỗi thì báo cáo có đủ thông tin
+    const c = getCrashlytics();
+    log(c, `Checkout: bắt đầu đặt hàng, ${items.length} loại sản phẩm, ${method}`);
+    setAttributes(c, {
+      screen: 'CheckoutScreen',
+      cart_item_count: String(items.length),
+      cart_total: String(totalPrice),
+      payment_method: method,
+      app_env: APP_ENV,
+      api_base_url: API_BASE_URL, // Lộ ngay nếu bản Store lỡ trỏ vào máy dev
+    });
     mutate({ items, totalPrice, paymentMethod: method, card });
   };
 

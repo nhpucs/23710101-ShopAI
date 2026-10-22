@@ -5,6 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { getCrashlytics, log, recordError } from '@react-native-firebase/crashlytics';
+import * as Updates from 'expo-updates';
 import { ThemeProvider } from '@contexts/ThemeContext';
 import LoginScreen from '@screens/LoginScreen';
 import RegisterScreen from '@screens/RegisterScreen';
@@ -12,6 +14,7 @@ import RootStackNavigator from '@navigation/RootStackNavigator';
 import { useAuthStore } from '@store/useAuthStore';
 import { reduxStore } from '@store/redux/store';
 import { COLORS } from '@constants/theme';
+import { APP_ENV, APP_VERSION, ENABLE_OTA_UPDATE } from '@constants/env';
 import BiometricGateScreen from '@screens/BiometricGateScreen';
 import { useAppLock } from '@hooks/useAppLock';
 
@@ -58,6 +61,30 @@ function App(): React.JSX.Element {
   useEffect(() => {
     checkLocalToken(); // Móc vào két SecureStore ngay khi App vừa khởi chạy
   }, [checkLocalToken]);
+
+  // Chương 10 (Bước 2): vụn bánh mì đầu tiên — biết app đã mở ở bản nào, môi trường nào
+  useEffect(() => {
+    log(getCrashlytics(), `App ShopAI đã khởi động (v${APP_VERSION}, ${APP_ENV}).`);
+  }, []);
+
+  // Chương 10 (Bước 6): kiểm tra bản vá OTA mỗi lần mở app. Lúc dev thì code đã đến từ Metro
+  // nên bỏ qua, tránh app tự reload giữa chừng.
+  useEffect(() => {
+    async function checkForUpdate() {
+      if (!ENABLE_OTA_UPDATE || !Updates.isEnabled) return;
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync(); // Tải xong thì mở lại app bằng bản JS mới
+        }
+      } catch (error) {
+        // Không có mạng hay server Expo lỗi thì app vẫn chạy bản cũ, chỉ ghi lại để theo dõi
+        recordError(getCrashlytics(), error as Error, 'OtaUpdateFailed');
+      }
+    }
+    checkForUpdate();
+  }, []);
 
     // Canh gác App Lock — tự khoá nếu App ở nền quá lâu (Phần 8.12)
   useAppLock({ isUnlocked, setIsUnlocked });

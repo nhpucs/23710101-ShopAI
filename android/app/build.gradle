@@ -1,6 +1,9 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// Chương 10 (Phần A): Firebase Crashlytics — 2 plugin phải đứng sau plugin React Native
+apply plugin: "com.google.gms.google-services"
+apply plugin: "com.google.firebase.crashlytics"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -55,14 +58,16 @@ react {
     //
     // Added by install-expo-modules
     entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", rootDir.getAbsoluteFile().getParentFile().getAbsolutePath(), "android", "absolute"].execute(null, rootDir).text.trim())
-    cliFile = new File(["node", "--print", "require.resolve('@expo/cli')"].execute(null, rootDir).text.trim())
+    // Chương 10: @expo/cli nằm trong node_modules/expo/node_modules -> phải tìm từ chỗ gói expo.
+    // Tìm thẳng thì ra chuỗi rỗng = thư mục android/app, build Release báo lỗi phụ thuộc task.
+    cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
 }
 
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true // Chương 10 (Phần 10.7): bật R8 thu nhỏ + làm rối mã bản Release
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -77,6 +82,20 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+// Chương 10 (Phần 10.10): đánh số phiên bản tự động — không bao giờ phải tự tăng versionCode bằng tay.
+// Nhớ đổi APP_VERSION trong src/constants/env.ts cho khớp.
+def versionMajor = 1
+def versionMinor = 0
+def versionPatch = 0
+
+// Chương 10 (Phần 10.6): mật khẩu Keystore nằm trong android/keystore.properties (bị .gitignore chặn),
+// không để trong gradle.properties vì file đó còn chứa cấu hình build chung phải commit.
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -87,8 +106,8 @@ android {
         applicationId "com.shopai"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode versionMajor * 10000 + versionMinor * 100 + versionPatch
+        versionName "${versionMajor}.${versionMinor}.${versionPatch}"
     }
     signingConfigs {
         debug {
@@ -97,17 +116,34 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (keystoreProps['MYAPP_RELEASE_STORE_FILE']) {
+                storeFile file(keystoreProps['MYAPP_RELEASE_STORE_FILE'])
+                storePassword keystoreProps['MYAPP_RELEASE_STORE_PASSWORD']
+                keyAlias keystoreProps['MYAPP_RELEASE_KEY_ALIAS']
+                keyPassword keystoreProps['MYAPP_RELEASE_KEY_PASSWORD']
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            firebaseCrashlytics {
+                // Bản debug không bật R8 nên không có mapping để upload
+                mappingFileUploadEnabled false
+            }
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Ký bằng Keystore riêng của ShopAI. Máy chưa có keystore.properties (vd CI) thì
+            // tạm ký bằng debug để vẫn build được — bản đó KHÔNG được nộp Store.
+            signingConfig keystoreProps['MYAPP_RELEASE_STORE_FILE'] ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            firebaseCrashlytics {
+                mappingFileUploadEnabled true   // R8 đổi tên class nên phải gửi mapping.txt để đọc được stack trace
+                nativeSymbolUploadEnabled false // ShopAI không có code C++ riêng
+            }
         }
     }
 }
